@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build:prod"
+  publish = "dist/uat-platform/browser"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS    = "--legacy-peer-deps"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
