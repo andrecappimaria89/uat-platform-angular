@@ -8,8 +8,8 @@
   "scripts": {
     "ng":         "ng",
     "start":      "ng serve",
-    "build":      "ng build --configuration production",
-    "build:prod": "ng build --configuration production",
+    "build":      "node set-env.js && ng build --configuration production",
+    "build:prod": "node set-env.js && ng build --configuration production",
     "test":       "ng test",
     "e2e":        "npx cypress run"
   },
