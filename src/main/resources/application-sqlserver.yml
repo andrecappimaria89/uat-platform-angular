@@ -1,0 +1,52 @@
+# ════════════════════════════════════════════════════════════════════════
+#  CONFIGURAÇÃO FUTURA — SQL SERVER (não ativa)
+# ════════════════════════════════════════════════════════════════════════
+#
+# Este arquivo NÃO é carregado automaticamente. É um template pronto
+# para quando a migração de banco acontecer.
+#
+# COMO ATIVAR:
+#   1. Renomear este arquivo para application.yml (substituindo o atual)
+#      ou rodar a API com: --spring.profiles.active=sqlserver
+#   2. Preencher as variáveis de ambiente SQLSERVER_* abaixo
+#   3. Em ScenarioSqlServerAdapter.java, adicionar @Primary
+#   4. Em ScenarioSupabaseAdapter.java, remover @Primary
+#   5. Repetir os passos 3-4 para os demais adaptadores (Issue, Area,
+#      User, Plan, Version) seguindo o mesmo padrão
+#
+# Nenhum Controller, Service, DTO ou linha do Angular muda neste processo.
+# ════════════════════════════════════════════════════════════════════════
+
+spring:
+  application:
+    name: uat-platform-api
+
+  datasource:
+    # Formato esperado:
+    # jdbc:sqlserver://SEU-SERVIDOR.database.windows.net:1433;database=uatplataform;encrypt=true
+    url: ${SQLSERVER_DB_URL}
+    username: ${SQLSERVER_DB_USER}
+    password: ${SQLSERVER_DB_PASSWORD}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+
+  jpa:
+    # Única diferença real de configuração entre os dois bancos
+    database-platform: org.hibernate.dialect.SQLServerDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+server:
+  port: ${PORT:8080}
+
+app:
+  cors:
+    allowed-origin: ${CORS_ALLOWED_ORIGIN:https://uat-platform-dev.netlify.app}
+
+logging:
+  level:
+    com.uatplataform: INFO

@@ -1,0 +1,70 @@
+/* ─── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+/* ─── Design Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --brand:        #185FA5;
+  --brand-dark:   #0C447C;
+  --brand-light:  #E6F1FB;
+  --success:      #3B6D11;
+  --success-bg:   #EAF3DE;
+  --danger:       #A32D2D;
+  --danger-bg:    #FCEBEB;
+  --warning:      #854F0B;
+  --warning-bg:   #FAEEDA;
+  --gray:         #888780;
+  --sidebar-w:    240px;
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  background: #f8f9fa;
+  color: #1a1a1a;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Status Badges ─────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge.todo       { background: #D3D1C7; color: #444441; }
+.badge.em-teste   { background: #B5D4F4; color: #0C447C; }
+.badge.bloqueado  { background: #F7C1C1; color: #791F1F; }
+.badge.concluido  { background: #C0DD97; color: #27500A; }
+.badge.falha      { background: #F09595; color: #501313; }
+.badge.sucesso    { background: #9FE1CB; color: #085041; }
+.badge.s1 { background: #E24B4A; color: #fff; }
+.badge.s2 { background: #F09595; color: #501313; }
+.badge.s3 { background: #EF9F27; color: #412402; }
+.badge.s4 { background: #FAC775; color: #633806; }
+.badge.s5 { background: #B5D4F4; color: #0C447C; }
+.badge.p1 { background: #E24B4A; color: #fff; }
+.badge.p2 { background: #EF9F27; color: #412402; }
+.badge.p3 { background: #FAC775; color: #633806; }
+.badge.p4 { background: #D3D1C7; color: #444441; }
+.badge.aberto      { background: #FAC775; color: #633806; }
+.badge.em-analise  { background: #B5D4F4; color: #0C447C; }
+.badge.em-correcao { background: #D8B4FE; color: #5B21B6; }
+.badge.homologando { background: #9FE1CB; color: #085041; }
+.badge.encerrado   { background: #C0DD97; color: #27500A; }
+.badge.cancelado   { background: #D3D1C7; color: #444441; }
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D3D1C7; border-radius: 4px; }
+
+/* ─── Utilities ──────────────────────────────────────────────────────────────── */
+.truncate    { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.text-muted  { color: #888780; font-size: 12px; }

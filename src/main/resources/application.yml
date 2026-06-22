@@ -1,0 +1,77 @@
+# ════════════════════════════════════════════════════════════════════════
+#  CONFIGURAÇÃO ATIVA — SUPABASE (PostgreSQL)
+# ════════════════════════════════════════════════════════════════════════
+#
+# Esta API conecta no MESMO banco Supabase que o Angular usa hoje.
+# As credenciais vêm de variáveis de ambiente — NUNCA hardcode aqui.
+#
+# Onde pegar as credenciais (já configuradas no Netlify do projeto):
+#   1. Supabase Dashboard → Project Settings → Database
+#   2. Connection string (modo "Session pooler" recomendado para produção)
+#   3. Formato: postgresql://postgres.[ref]:[senha]@[host]:5432/postgres
+#
+# ════════════════════════════════════════════════════════════════════════
+
+spring:
+  application:
+    name: uat-platform-api
+
+  datasource:
+    # SUPABASE_DB_URL formato esperado:
+    # jdbc:postgresql://aws-0-sa-east-1.pooler.supabase.com:5432/postgres?user=postgres.xxxxx&password=SUASENHA
+    url: ${SUPABASE_DB_URL}
+    username: ${SUPABASE_DB_USER}
+    password: ${SUPABASE_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      # Supabase pooler exige isso para funcionar corretamente
+      data-source-properties:
+        prepareThreshold: 0
+
+  jpa:
+    # Dialect específico do PostgreSQL — TROCAR para SQLServerDialect
+    # quando migrar de banco (única linha que muda aqui)
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      # 'validate' em produção — a tabela já existe no Supabase, a API
+      # nunca deve criar/alterar schema sozinha
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          lob:
+            non_contextual_creation: true
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: always
+
+app:
+  cors:
+    # URL do Angular no Netlify — ajustar se mudar o domínio
+    allowed-origin: ${CORS_ALLOWED_ORIGIN:https://uat-platform-dev.netlify.app}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.uatplataform: INFO
+    org.hibernate.SQL: WARN
