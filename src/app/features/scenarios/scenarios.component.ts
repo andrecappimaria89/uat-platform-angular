@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener } from '@angular/core'
+import { Component, OnInit, OnDestroy, HostListener, ElementRef } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { FormsModule } from '@angular/forms'
 import { Store } from '@ngrx/store'
@@ -154,23 +154,13 @@ import type { Scenario, TestPlan } from '../../core/models'
                   <td>{{ s.responsible_name }}</td>
                   <td>{{ s.planned_date | date:'dd/MM/yyyy' }}</td>
                   <td>
-                    <!-- Dropdown CSS puro — posicionado corretamente abaixo do badge -->
-                    <div class="status-wrapper">
-                      <button class="status-trigger" [class]="getBadgeClass(s.status)"
-                        (click)="toggleStatusMenu(s.id, $event)"
-                        matTooltip="Clique para alterar status">
-                        {{ getStatusLabel(s.status) }}
-                        <mat-icon class="caret">arrow_drop_down</mat-icon>
-                      </button>
-                      <div class="status-dropdown" *ngIf="openStatusMenuId === s.id">
-                        <button *ngFor="let opt of statusOptions"
-                          class="status-option" [class.active]="opt.value === s.status"
-                          (click)="quickChangeStatus(s, opt.value)">
-                          <span class="badge" [class]="getBadgeClass(opt.value)">{{ opt.label }}</span>
-                          <mat-icon *ngIf="opt.value === s.status" style="font-size:14px;width:14px;height:14px;color:#185FA5">check</mat-icon>
-                        </button>
-                      </div>
-                    </div>
+                    <!-- Badge de status — clique posiciona o dropdown via getBoundingClientRect -->
+                    <button class="status-trigger" [class]="getBadgeClass(s.status)"
+                      (click)="toggleStatusMenu(s, $event)"
+                      matTooltip="Clique para alterar status">
+                      {{ getStatusLabel(s.status) }}
+                      <mat-icon class="caret">arrow_drop_down</mat-icon>
+                    </button>
                   </td>
                   <td class="actions-col">
                     <button class="icon-btn" (click)="openEdit(s)" matTooltip="Editar" matTooltipPosition="above">
@@ -197,6 +187,21 @@ import type { Scenario, TestPlan } from '../../core/models'
 
       </div>
     </div>
+
+    <!-- Dropdown de status renderizado fora da tabela — evita ser cortado por overflow:hidden -->
+    <div class="status-dropdown-global"
+      *ngIf="openStatusMenuId"
+      [style.top.px]="dropdownTop"
+      [style.left.px]="dropdownLeft">
+      <button *ngFor="let opt of statusOptions"
+        class="status-option"
+        [class.active]="opt.value === openStatusScenario?.status"
+        (click)="quickChangeStatus(openStatusScenario!, opt.value)">
+        <span class="badge" [class]="getBadgeClass(opt.value)">{{ opt.label }}</span>
+        <mat-icon *ngIf="opt.value === openStatusScenario?.status"
+          style="font-size:14px;width:14px;height:14px;color:#185FA5">check</mat-icon>
+      </button>
+    </div>
   `,
   styles: [`
     .page { display:flex; flex-direction:column; flex:1; overflow-y:auto; }
@@ -219,13 +224,14 @@ import type { Scenario, TestPlan } from '../../core/models'
     .keyword { font-weight:600; color:#185FA5; font-size:13px; min-width:52px; }
     .gherkin-row input { flex:1; padding:7px 10px; border:0.5px solid rgba(0,0,0,.15); border-radius:8px; font-size:13px; }
 
-    /* ── Status dropdown CSS puro ── */
-    .status-wrapper { position:relative; display:inline-block; }
-    .status-trigger { display:inline-flex; align-items:center; gap:2px; border:none; cursor:pointer; padding:2px 4px 2px 8px; border-radius:10px; font-size:11px; font-weight:600; transition:.1s; }
+    /* ── Status badge ── */
+    .status-trigger { display:inline-flex; align-items:center; gap:2px; border:none; cursor:pointer; padding:2px 4px 2px 8px; border-radius:10px; font-size:11px; font-weight:600; transition:.1s; white-space:nowrap; }
     .status-trigger:hover { filter:brightness(.92); }
     .caret { font-size:14px !important; width:14px !important; height:14px !important; }
-    .status-dropdown { position:absolute; top:calc(100% + 6px); left:0; background:white; border:0.5px solid rgba(0,0,0,.12); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.12); z-index:9999; min-width:140px; padding:4px; }
-    .status-option { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; background:none; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; transition:.1s; }
+
+    /* ── Dropdown renderizado fora da tabela via position:fixed ── */
+    .status-dropdown-global { position:fixed; background:white; border:0.5px solid rgba(0,0,0,.12); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.15); z-index:99999; min-width:150px; padding:4px; }
+    .status-option { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; background:none; border:none; padding:7px 12px; border-radius:6px; cursor:pointer; transition:.1s; font-size:13px; }
     .status-option:hover { background:#f5f5f5; }
     .status-option.active { background:#EEF5FF; }
   `],
@@ -236,7 +242,11 @@ export class ScenariosComponent implements OnInit, OnDestroy {
   search = ''; filterArea = ''; filterStatus = ''; filterResp = ''
   locked = false; formSubmitted = false
   expandedId: string | null = null
-  openStatusMenuId: string | null = null  // Controla qual dropdown de status está aberto
+  openStatusMenuId: string | null = null
+  openStatusScenario: Scenario | null = null
+  dropdownTop = 0
+  dropdownLeft = 0
+
   allScenarios: Scenario[] = []; filtered: Scenario[] = []; paged: Scenario[] = []
   areas: any[] = []; allUsers: any[] = []; usersByArea: any[] = []; openPlans: TestPlan[] = []
   planMap: Record<string, string> = {}
@@ -254,9 +264,11 @@ export class ScenariosComponent implements OnInit, OnDestroy {
 
   constructor(private store: Store, private snack: MatSnackBar) {}
 
-  // Fecha o dropdown ao clicar em qualquer lugar da página
   @HostListener('document:click')
-  closeStatusMenu() { this.openStatusMenuId = null }
+  closeStatusMenu() {
+    this.openStatusMenuId = null
+    this.openStatusScenario = null
+  }
 
   ngOnInit() {
     combineLatest([
@@ -292,10 +304,21 @@ export class ScenariosComponent implements OnInit, OnDestroy {
   getPlanName(id?: string): string { return id ? (this.planMap[id] ?? '—') : '—' }
   toggleExpand(id: string) { this.expandedId = this.expandedId === id ? null : id }
 
-  // Abre/fecha o dropdown de status posicionado abaixo do badge
-  toggleStatusMenu(id: string, event: MouseEvent) {
-    event.stopPropagation()  // Impede que o @HostListener feche imediatamente
-    this.openStatusMenuId = this.openStatusMenuId === id ? null : id
+  // Usa getBoundingClientRect para posicionar o dropdown com position:fixed
+  // — não é afetado por overflow:hidden da tabela
+  toggleStatusMenu(s: Scenario, event: MouseEvent) {
+    event.stopPropagation()
+    if (this.openStatusMenuId === s.id) {
+      this.openStatusMenuId = null
+      this.openStatusScenario = null
+      return
+    }
+    const btn = event.currentTarget as HTMLElement
+    const rect = btn.getBoundingClientRect()
+    this.dropdownTop  = rect.bottom + 6
+    this.dropdownLeft = rect.left
+    this.openStatusMenuId    = s.id
+    this.openStatusScenario  = s
   }
 
   onAreaChange(areaName: string) {
@@ -327,7 +350,8 @@ export class ScenariosComponent implements OnInit, OnDestroy {
   getBadgeClass(s: string)  { return this.badgeMap[s] ?? '' }
 
   quickChangeStatus(s: Scenario, newStatus: string) {
-    this.openStatusMenuId = null
+    this.openStatusMenuId   = null
+    this.openStatusScenario = null
     if (s.status === newStatus) return
     this.store.dispatch(updateScenario({ scenario: { ...s, status: newStatus as any, updated_at: new Date().toISOString() } }))
     this.snack.open(`Status alterado para ${this.getStatusLabel(newStatus)}.`, 'OK', { duration: 2500 })
