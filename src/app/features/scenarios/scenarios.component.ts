@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core'
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { FormsModule } from '@angular/forms'
 import { Store } from '@ngrx/store'
@@ -7,7 +7,6 @@ import { takeUntil } from 'rxjs/operators'
 import { MatIconModule } from '@angular/material/icon'
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
 import { MatTooltipModule } from '@angular/material/tooltip'
-import { MatMenuModule } from '@angular/material/menu'
 import * as XLSX from 'xlsx'
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component'
 import { selectScenarios, selectAreas, selectUsers, selectIsProjectLocked, selectSelectedPlanId, selectGlobalSearch, selectPlans } from '../../core/services/store.selectors'
@@ -18,7 +17,7 @@ import type { Scenario, TestPlan } from '../../core/models'
 @Component({
   selector: 'app-scenarios',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule, MatSnackBarModule, MatTooltipModule, MatMenuModule, TopbarComponent],
+  imports: [CommonModule, FormsModule, MatIconModule, MatSnackBarModule, MatTooltipModule, TopbarComponent],
   template: `
     <div class="page">
       <app-topbar title="Cenários e Evidências">
@@ -66,8 +65,6 @@ import type { Scenario, TestPlan } from '../../core/models'
             <div class="form-field"><label>CT ID *</label><input [(ngModel)]="form.ct_id" placeholder="CT-001" [class.invalid]="formSubmitted && !form.ct_id"></div>
             <div class="form-field"><label>EF ID</label><input [(ngModel)]="form.ef_id" placeholder="EF-001"></div>
             <div class="form-field"><label>Funcionalidade</label><input [(ngModel)]="form.feature"></div>
-
-            <!-- Área — obrigatória -->
             <div class="form-field">
               <label>Área *</label>
               <select [(ngModel)]="form.area_name" (ngModelChange)="onAreaChange($event)"
@@ -77,8 +74,6 @@ import type { Scenario, TestPlan } from '../../core/models'
               </select>
               <span *ngIf="formSubmitted && !form.area_name" class="error-msg">Área é obrigatória</span>
             </div>
-
-            <!-- Responsável — obrigatório, filtrado pela área selecionada -->
             <div class="form-field">
               <label>Responsável * <span class="required-hint" *ngIf="!form.area_name">(selecione a área primeiro)</span></label>
               <select [(ngModel)]="form.responsible_name" class="select-required"
@@ -87,9 +82,8 @@ import type { Scenario, TestPlan } from '../../core/models'
                 <option *ngFor="let u of usersByArea" [value]="u.name">{{ u.name }}</option>
               </select>
               <span *ngIf="formSubmitted && !form.responsible_name" class="error-msg">Responsável é obrigatório</span>
-              <span *ngIf="form.area_name && usersByArea.length===0" class="info-msg">Nenhum usuário cadastrado nesta área.</span>
+              <span *ngIf="form.area_name && usersByArea.length===0" class="info-msg">Nenhum usuário nesta área.</span>
             </div>
-
             <div class="form-field"><label>Data Planejada</label><input type="date" [(ngModel)]="form.planned_date"></div>
             <div class="form-field"><label>Status</label>
               <select [(ngModel)]="form.status">
@@ -147,7 +141,7 @@ import type { Scenario, TestPlan } from '../../core/models'
                   <td class="proj-col">{{ getPlanName(s.project_id) }}</td>
                   <td class="scenario-col" (click)="toggleExpand(s.id)" [class.wrap]="expandedId === s.id">
                     <span>{{ s.scenario }}</span>
-                    <button class="expand-btn" [title]="expandedId===s.id ? 'Recolher' : 'Expandir'">
+                    <button class="expand-btn">
                       <mat-icon>{{ expandedId === s.id ? 'unfold_less' : 'unfold_more' }}</mat-icon>
                     </button>
                   </td>
@@ -160,16 +154,23 @@ import type { Scenario, TestPlan } from '../../core/models'
                   <td>{{ s.responsible_name }}</td>
                   <td>{{ s.planned_date | date:'dd/MM/yyyy' }}</td>
                   <td>
-                    <!-- Status como menu — clique abre lista para trocar rapidamente -->
-                    <button class="status-trigger" [matMenuTriggerFor]="statusMenu" [class]="getBadgeClass(s.status)" matTooltip="Clique para alterar status">
-                      {{ getStatusLabel(s.status) }}
-                      <mat-icon class="caret">arrow_drop_down</mat-icon>
-                    </button>
-                    <mat-menu #statusMenu="matMenu">
-                      <button mat-menu-item *ngFor="let opt of statusOptions" (click)="quickChangeStatus(s, opt.value)">
-                        <span class="badge" [class]="getBadgeClass(opt.value)">{{ opt.label }}</span>
+                    <!-- Dropdown CSS puro — posicionado corretamente abaixo do badge -->
+                    <div class="status-wrapper">
+                      <button class="status-trigger" [class]="getBadgeClass(s.status)"
+                        (click)="toggleStatusMenu(s.id, $event)"
+                        matTooltip="Clique para alterar status">
+                        {{ getStatusLabel(s.status) }}
+                        <mat-icon class="caret">arrow_drop_down</mat-icon>
                       </button>
-                    </mat-menu>
+                      <div class="status-dropdown" *ngIf="openStatusMenuId === s.id">
+                        <button *ngFor="let opt of statusOptions"
+                          class="status-option" [class.active]="opt.value === s.status"
+                          (click)="quickChangeStatus(s, opt.value)">
+                          <span class="badge" [class]="getBadgeClass(opt.value)">{{ opt.label }}</span>
+                          <mat-icon *ngIf="opt.value === s.status" style="font-size:14px;width:14px;height:14px;color:#185FA5">check</mat-icon>
+                        </button>
+                      </div>
+                    </div>
                   </td>
                   <td class="actions-col">
                     <button class="icon-btn" (click)="openEdit(s)" matTooltip="Editar" matTooltipPosition="above">
@@ -217,29 +218,45 @@ import type { Scenario, TestPlan } from '../../core/models'
     .gherkin-row { display:flex; align-items:center; gap:8px; }
     .keyword { font-weight:600; color:#185FA5; font-size:13px; min-width:52px; }
     .gherkin-row input { flex:1; padding:7px 10px; border:0.5px solid rgba(0,0,0,.15); border-radius:8px; font-size:13px; }
-    .status-trigger { display:inline-flex; align-items:center; gap:2px; border:none; cursor:pointer; padding:2px 6px 2px 8px; border-radius:10px; font-size:11px; font-weight:600; transition:.15s; }
-    .status-trigger:hover { filter:brightness(0.95); }
+
+    /* ── Status dropdown CSS puro ── */
+    .status-wrapper { position:relative; display:inline-block; }
+    .status-trigger { display:inline-flex; align-items:center; gap:2px; border:none; cursor:pointer; padding:2px 4px 2px 8px; border-radius:10px; font-size:11px; font-weight:600; transition:.1s; }
+    .status-trigger:hover { filter:brightness(.92); }
     .caret { font-size:14px !important; width:14px !important; height:14px !important; }
+    .status-dropdown { position:absolute; top:calc(100% + 6px); left:0; background:white; border:0.5px solid rgba(0,0,0,.12); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.12); z-index:9999; min-width:140px; padding:4px; }
+    .status-option { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; background:none; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; transition:.1s; }
+    .status-option:hover { background:#f5f5f5; }
+    .status-option.active { background:#EEF5FF; }
   `],
 })
 export class ScenariosComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>()
 
   search = ''; filterArea = ''; filterStatus = ''; filterResp = ''
-  locked = false; formSubmitted = false; expandedId: string | null = null
+  locked = false; formSubmitted = false
+  expandedId: string | null = null
+  openStatusMenuId: string | null = null  // Controla qual dropdown de status está aberto
   allScenarios: Scenario[] = []; filtered: Scenario[] = []; paged: Scenario[] = []
   areas: any[] = []; allUsers: any[] = []; usersByArea: any[] = []; openPlans: TestPlan[] = []
   planMap: Record<string, string> = {}
   pageSize = 20; currentPage = 1; totalPages = 1
-  colWidths = [90, 110, 200, 220, 100, 130, 100, 130]
+  colWidths = [90, 110, 200, 220, 100, 130, 100, 140]
   private resizing: { index: number; startX: number; startW: number } | null = null
   showForm = false; editingScenario: Scenario | null = null; form: Partial<Scenario> = {}
   statusOptions = Object.entries(SCENARIO_STATUS_LABELS).map(([v,l]) => ({ value:v, label:l }))
-  badgeMap: Record<string,string> = { todo:'badge-todo', em_teste:'badge-em-teste', bloqueado:'badge-bloqueado', falha:'badge-falha', sucesso:'badge-sucesso' }
+  badgeMap: Record<string,string> = {
+    todo:'badge-todo', em_teste:'badge-em-teste', bloqueado:'badge-bloqueado',
+    falha:'badge-falha', sucesso:'badge-sucesso'
+  }
 
   get users() { return this.allUsers }
 
-  constructor(private store: Store, private snack: MatSnackBar, private cdr: ChangeDetectorRef) {}
+  constructor(private store: Store, private snack: MatSnackBar) {}
+
+  // Fecha o dropdown ao clicar em qualquer lugar da página
+  @HostListener('document:click')
+  closeStatusMenu() { this.openStatusMenuId = null }
 
   ngOnInit() {
     combineLatest([
@@ -249,7 +266,9 @@ export class ScenariosComponent implements OnInit, OnDestroy {
       this.store.select(selectIsProjectLocked),
     ]).pipe(takeUntil(this.destroy$)).subscribe(([scenarios, planId, globalSearch, locked]) => {
       this.locked = locked
-      this.allScenarios = planId ? scenarios.filter(s => !s.project_id || s.project_id === planId) : scenarios
+      this.allScenarios = planId
+        ? scenarios.filter(s => !s.project_id || s.project_id === planId)
+        : scenarios
       if (globalSearch) this.search = globalSearch
       this.applyAll()
     })
@@ -273,9 +292,14 @@ export class ScenariosComponent implements OnInit, OnDestroy {
   getPlanName(id?: string): string { return id ? (this.planMap[id] ?? '—') : '—' }
   toggleExpand(id: string) { this.expandedId = this.expandedId === id ? null : id }
 
+  // Abre/fecha o dropdown de status posicionado abaixo do badge
+  toggleStatusMenu(id: string, event: MouseEvent) {
+    event.stopPropagation()  // Impede que o @HostListener feche imediatamente
+    this.openStatusMenuId = this.openStatusMenuId === id ? null : id
+  }
+
   onAreaChange(areaName: string) {
     this.usersByArea = areaName ? this.allUsers.filter(u => u.area_name === areaName) : []
-    // Se o responsável atual não pertence à nova área, limpa a seleção
     if (this.form.responsible_name && !this.usersByArea.some(u => u.name === this.form.responsible_name)) {
       this.form.responsible_name = ''
     }
@@ -287,7 +311,9 @@ export class ScenariosComponent implements OnInit, OnDestroy {
       if (this.filterArea   && s.area_name        !== this.filterArea)   return false
       if (this.filterStatus && s.status           !== this.filterStatus) return false
       if (this.filterResp   && s.responsible_name !== this.filterResp)   return false
-      if (q && !s.ct_id?.toLowerCase().includes(q) && !s.scenario?.toLowerCase().includes(q) && !s.feature?.toLowerCase().includes(q) && !s.responsible_name?.toLowerCase().includes(q)) return false
+      if (q && !s.ct_id?.toLowerCase().includes(q) &&
+               !s.scenario?.toLowerCase().includes(q) &&
+               !s.feature?.toLowerCase().includes(q)) return false
       return true
     })
     this.totalPages = Math.max(1, Math.ceil(this.filtered.length / this.pageSize))
@@ -301,6 +327,7 @@ export class ScenariosComponent implements OnInit, OnDestroy {
   getBadgeClass(s: string)  { return this.badgeMap[s] ?? '' }
 
   quickChangeStatus(s: Scenario, newStatus: string) {
+    this.openStatusMenuId = null
     if (s.status === newStatus) return
     this.store.dispatch(updateScenario({ scenario: { ...s, status: newStatus as any, updated_at: new Date().toISOString() } }))
     this.snack.open(`Status alterado para ${this.getStatusLabel(newStatus)}.`, 'OK', { duration: 2500 })
@@ -329,9 +356,9 @@ export class ScenariosComponent implements OnInit, OnDestroy {
 
   save() {
     this.formSubmitted=true
-    if (!this.form.project_id)        { this.snack.open('Selecione o Projeto (obrigatório).','OK',{duration:3000}); return }
-    if (!this.form.area_name)         { this.snack.open('Selecione a Área (obrigatório).','OK',{duration:3000});    return }
-    if (!this.form.responsible_name)  { this.snack.open('Selecione o Responsável (obrigatório).','OK',{duration:3000}); return }
+    if (!this.form.project_id)       { this.snack.open('Selecione o Projeto.','OK',{duration:3000}); return }
+    if (!this.form.area_name)        { this.snack.open('Selecione a Área.','OK',{duration:3000}); return }
+    if (!this.form.responsible_name) { this.snack.open('Selecione o Responsável.','OK',{duration:3000}); return }
     if (!this.form.ct_id || !this.form.scenario) { this.snack.open('CT ID e Cenário são obrigatórios.','OK',{duration:3000}); return }
     const now=new Date().toISOString()
     if (this.editingScenario) {
@@ -351,8 +378,16 @@ export class ScenariosComponent implements OnInit, OnDestroy {
   }
 
   exportExcel() {
-    const rows=this.filtered.map(s=>({ 'CT ID':s.ct_id,'EF ID':s.ef_id??'','Projeto':this.getPlanName(s.project_id),'Cenário':s.scenario,'Funcionalidade':s.feature??'','Área':s.area_name??'','Responsável':s.responsible_name??'','Status':this.getStatusLabel(s.status),'Dado':s.gherkin?.dado??'','Quando':s.gherkin?.quando??'','Então':s.gherkin?.entao??'' }))
-    const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Cenários'); XLSX.writeFile(wb,'cenarios-uat.xlsx')
+    const rows=this.filtered.map(s=>({
+      'CT ID':s.ct_id,'EF ID':s.ef_id??'','Projeto':this.getPlanName(s.project_id),
+      'Cenário':s.scenario,'Funcionalidade':s.feature??'','Área':s.area_name??'',
+      'Responsável':s.responsible_name??'','Status':this.getStatusLabel(s.status),
+      'Dado':s.gherkin?.dado??'','Quando':s.gherkin?.quando??'','Então':s.gherkin?.entao??''
+    }))
+    const ws=XLSX.utils.json_to_sheet(rows)
+    const wb=XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb,ws,'Cenários')
+    XLSX.writeFile(wb,'cenarios-uat.xlsx')
     this.snack.open('Excel exportado.','OK',{duration:3000})
   }
 }
