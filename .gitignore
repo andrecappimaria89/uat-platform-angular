@@ -7,4 +7,3 @@ target/
 .DS_Store
 *.log
 HELP.md
-node_modules/
