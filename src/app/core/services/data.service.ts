@@ -78,7 +78,7 @@ export class DataService {
   }
 
   createScenario(s: Scenario): Observable<Scenario | null> {
-    if (!this.db) return of(s)
+    if (!this.db) { console.error('[DataService] createScenario: Supabase não configurado.'); return of(null) }
     return from(this.db.from('scenarios').insert([{
       id: s.id, ct_id: s.ct_id, ef_id: s.ef_id,
       planned_date: s.planned_date || null,
@@ -96,7 +96,7 @@ export class DataService {
   }
 
   updateScenario(s: Scenario): Observable<boolean> {
-    if (!this.db) return of(true)
+    if (!this.db) { console.error('[DataService] updateScenario: Supabase não configurado.'); return of(false) }
     return from(this.db.from('scenarios').update({
       ct_id: s.ct_id, ef_id: s.ef_id, planned_date: s.planned_date || null,
       responsible_name: s.responsible_name, area_name: s.area_name,
@@ -114,7 +114,7 @@ export class DataService {
   }
 
   deleteScenario(id: string): Observable<boolean> {
-    if (!this.db) return of(true)
+    if (!this.db) { console.error('[DataService] deleteScenario: Supabase não configurado.'); return of(false) }
     return from(this.db.from('scenarios').delete().eq('id', id)).pipe(
       map(({ error }) => { if (error) throw error; return true }),
       catchError(e => { console.error('deleteScenario:', e.message); return of(false) })
@@ -132,7 +132,7 @@ export class DataService {
   }
 
   createIssue(i: Issue): Observable<Issue | null> {
-    if (!this.db) return of(i)
+    if (!this.db) { console.error('[DataService] createIssue: Supabase não configurado.'); return of(null) }
     return from(this.db.from('issues').insert([{
       id: i.id, issue_id: i.issue_id, title: i.title, description: i.description,
       scenario_ct: i.scenario_ct, responsible_name: i.responsible_name, area_name: i.area_name,
@@ -147,7 +147,7 @@ export class DataService {
   }
 
   updateIssue(i: Issue): Observable<boolean> {
-    if (!this.db) return of(true)
+    if (!this.db) { console.error('[DataService] updateIssue: Supabase não configurado.'); return of(false) }
     return from(this.db.from('issues').update({
       title: i.title, description: i.description, scenario_ct: i.scenario_ct,
       responsible_name: i.responsible_name, area_name: i.area_name,
@@ -163,7 +163,7 @@ export class DataService {
   }
 
   deleteIssue(id: string): Observable<boolean> {
-    if (!this.db) return of(true)
+    if (!this.db) { console.error('[DataService] deleteIssue: Supabase não configurado.'); return of(false) }
     return from(this.db.from('issues').delete().eq('id', id)).pipe(
       map(({ error }) => { if (error) throw error; return true }),
       catchError(e => { console.error('deleteIssue:', e.message); return of(false) })
@@ -181,7 +181,7 @@ export class DataService {
   }
 
   createArea(a: Area): Observable<Area | null> {
-    if (!this.db) return of(a)
+    if (!this.db) { console.error('[DataService] createArea: Supabase não configurado.'); return of(null) }
     return from(this.db.from('areas').insert([{ id: a.id, name: a.name, responsible_name: a.responsible_name, members: a.members ?? [] }]).select().single()).pipe(
       map(({ data, error }) => { if (error) throw error; return this.mapArea(data) }),
       catchError(e => { console.error('createArea:', e.message); return of(null) })
@@ -189,7 +189,7 @@ export class DataService {
   }
 
   updateArea(a: Area): Observable<boolean> {
-    if (!this.db) return of(true)
+    if (!this.db) { console.error('[DataService] updateArea: Supabase não configurado.'); return of(false) }
     return from(this.db.from('areas').update({ name: a.name, responsible_name: a.responsible_name, members: a.members ?? [] }).eq('id', a.id)).pipe(
       map(({ error }) => { if (error) throw error; return true }),
       catchError(e => { console.error('updateArea:', e.message); return of(false) })
@@ -197,7 +197,7 @@ export class DataService {
   }
 
   deleteArea(id: string): Observable<boolean> {
-    if (!this.db) return of(true)
+    if (!this.db) { console.error('[DataService] deleteArea: Supabase não configurado.'); return of(false) }
     return from(this.db.from('areas').delete().eq('id', id)).pipe(
       map(({ error }) => { if (error) throw error; return true }),
       catchError(e => { console.error('deleteArea:', e.message); return of(false) })
@@ -215,7 +215,7 @@ export class DataService {
   }
 
   createUser(u: User): Observable<User | null> {
-    if (!this.db) return of(u)
+    if (!this.db) { console.error('[DataService] createUser: Supabase não configurado — usuário NÃO foi salvo.'); return of(null) }
     return from(this.db.from('profiles').insert([{ id: u.id, name: u.name, email: u.email, role: u.role, area_name: u.area_name, avatar_initials: u.avatar_initials, active: u.active }]).select().single()).pipe(
       map(({ data, error }) => { if (error) throw error; return this.mapUser(data) }),
       catchError(e => { console.error('createUser:', e.message); return of(null) })
@@ -223,7 +223,7 @@ export class DataService {
   }
 
   updateUser(u: User): Observable<boolean> {
-    if (!this.db) return of(true)
+    if (!this.db) { console.error('[DataService] updateUser: Supabase não configurado.'); return of(false) }
     return from(this.db.from('profiles').update({ name: u.name, email: u.email, role: u.role, area_name: u.area_name, avatar_initials: u.avatar_initials, active: u.active }).eq('id', u.id)).pipe(
       map(({ error }) => { if (error) throw error; return true }),
       catchError(e => { console.error('updateUser:', e.message); return of(false) })
@@ -231,7 +231,7 @@ export class DataService {
   }
 
   deleteUser(id: string): Observable<boolean> {
-    if (!this.db) return of(true)
+    if (!this.db) { console.error('[DataService] deleteUser: Supabase não configurado.'); return of(false) }
     return from(this.db.from('profiles').update({ active: false }).eq('id', id)).pipe(
       map(({ error }) => { if (error) throw error; return true }),
       catchError(e => { console.error('deleteUser:', e.message); return of(false) })
