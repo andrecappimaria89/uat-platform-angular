@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon'
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component'
 import { addScenario } from '../../core/services/store.actions'
+import { selectPlans } from '../../core/services/store.selectors'
 import * as XLSX from 'xlsx'
 
 @Component({
@@ -14,6 +15,7 @@ import * as XLSX from 'xlsx'
   template: `
     <div class="page">
       <app-topbar title="Importar Planilha" [showProjectSelector]="false"></app-topbar>
+
       <div class="content">
 
         <!-- Actions -->
@@ -37,17 +39,18 @@ import * as XLSX from 'xlsx'
           <input #fileInput2 type="file" accept=".xlsx,.csv" (change)="onFile($event)" style="display:none">
         </div>
 
-        <!-- Columns info -->
+        <!-- Colunas esperadas -->
         <div class="card">
           <h3 class="card-title"><mat-icon>table_chart</mat-icon> Colunas da Planilha</h3>
           <div class="cols-grid">
             <span class="col-required" *ngFor="let c of requiredCols">{{ c }} *</span>
             <span class="col-optional" *ngFor="let c of optionalCols">{{ c }}</span>
           </div>
-          <p class="info-note">* Obrigatórias. Status aceitos: To Do, Em Teste, Bloqueado, Concluído, Falha, Sucesso</p>
+          <p class="info-note">* Obrigatórias. Status aceitos: To Do, Em Teste, Bloqueado, Falha, Sucesso</p>
+          <p class="info-note">A coluna "Projeto" deve conter o nome exato do projeto cadastrado na plataforma.</p>
         </div>
 
-        <!-- Result -->
+        <!-- Resultado -->
         <div *ngIf="result" class="card">
           <h3 class="card-title"><mat-icon>summarize</mat-icon> Resultado da Importação</h3>
           <div class="result-grid">
@@ -98,18 +101,23 @@ import * as XLSX from 'xlsx'
 })
 export class ImportarComponent {
   result: any = null
+  plans: any[] = []
+
+  // ITEM 5: "Projeto" adicionado às colunas obrigatórias da planilha
   requiredCols = ['CT ID', 'Cenário', 'Status']
-  optionalCols = ['EF ID', 'Funcionalidade', 'Área', 'Responsável', 'Data Planejada', 'Pré-condições', 'Dado', 'Quando', 'Então', 'Resultado Esperado', 'Comentários']
+  optionalCols  = ['Projeto', 'EF ID', 'Funcionalidade', 'Área', 'Responsável', 'Data Planejada', 'Pré-condições', 'Dado', 'Quando', 'Então', 'Resultado Esperado', 'Comentários']
 
   private statusMap: Record<string,string> = {
-    'to do':'todo','em teste':'em_teste','bloqueado':'bloqueado',
-    'concluído':'concluido','concluido':'concluido','falha':'falha','sucesso':'sucesso',
+    'to do':'todo', 'em teste':'em_teste', 'bloqueado':'bloqueado',
+    'falha':'falha', 'sucesso':'sucesso',
   }
 
-  constructor(private store: Store, private snack: MatSnackBar) {}
+  constructor(private store: Store, private snack: MatSnackBar) {
+    this.store.select(selectPlans).subscribe(p => this.plans = p)
+  }
 
-  onFile(e: any)   { const f = e.target.files?.[0]; if (f) this.processFile(f) }
-  onDrop(e: any)   { e.preventDefault(); const f = e.dataTransfer?.files[0]; if (f) this.processFile(f) }
+  onFile(e: any)  { const f = e.target.files?.[0]; if (f) this.processFile(f) }
+  onDrop(e: any)  { e.preventDefault(); const f = e.dataTransfer?.files[0]; if (f) this.processFile(f) }
 
   processFile(file: File) {
     const reader = new FileReader()
@@ -132,21 +140,32 @@ export class ImportarComponent {
     const ids = new Set<string>()
 
     rows.forEach((row: any, idx: number) => {
-      const line = idx + 2
-      const ctId = String(row['CT ID'] ?? '').trim()
+      const line  = idx + 2
+      const ctId  = String(row['CT ID'] ?? '').trim()
 
       if (!ctId || !row['Cenário'] || !row['Status']) {
-        errors.push({ row:line, field:'Obrigatórios', message:'CT ID, Cenário e Status são obrigatórios' }); invalid++; return
+        errors.push({ row:line, field:'Obrigatórios', message:'CT ID, Cenário e Status são obrigatórios' })
+        invalid++; return
       }
       if (ids.has(ctId)) {
-        errors.push({ row:line, field:'CT ID', message:`ID duplicado: "${ctId}"` }); duplicates++; return
+        errors.push({ row:line, field:'CT ID', message:`ID duplicado: "${ctId}"` })
+        duplicates++; return
       }
 
       const statusRaw = String(row['Status']).toLowerCase().trim()
       const status    = this.statusMap[statusRaw] ?? statusRaw
-      const validSts  = ['todo','em_teste','bloqueado','concluido','falha','sucesso']
-      if (!validSts.includes(status)) {
-        errors.push({ row:line, field:'Status', message:`Status inválido: "${row['Status']}"` }); invalid++; return
+      if (!Object.values(this.statusMap).includes(status)) {
+        errors.push({ row:line, field:'Status', message:`Status inválido: "${row['Status']}"` })
+        invalid++; return
+      }
+
+      // ITEM 5: Associar ao projeto pelo nome informado na coluna "Projeto"
+      let project_id: string | undefined
+      if (row['Projeto']) {
+        const matchedPlan = this.plans.find(p =>
+          p.project.trim().toLowerCase() === String(row['Projeto']).trim().toLowerCase()
+        )
+        if (matchedPlan) project_id = matchedPlan.id
       }
 
       ids.add(ctId)
@@ -164,6 +183,7 @@ export class ImportarComponent {
         expected_result:  row['Resultado Esperado'] || undefined,
         status:           status as any,
         comments:         row['Comentários'] || undefined,
+        project_id,
         created_at:       new Date().toISOString(),
         updated_at:       new Date().toISOString(),
       }}))
@@ -174,17 +194,30 @@ export class ImportarComponent {
     this.snack.open(`${imported} cenário(s) importado(s).`, 'OK', { duration:4000 })
   }
 
+  // ITEM 5: Apenas 1 linha de exemplo + coluna Projeto incluída
   downloadExample() {
-    const example = [
-      { 'CT ID':'CT-001', 'EF ID':'EF-001', 'Cenário':'Login com credenciais válidas', 'Funcionalidade':'Autenticação', 'Área':'TI', 'Responsável':'João Silva', 'Data Planejada':'01/06/2025', 'Pré-condições':'Usuário cadastrado no sistema', 'Dado':'o usuário está na tela de login', 'Quando':'ele informa credenciais válidas', 'Então':'o sistema redireciona ao dashboard', 'Resultado Esperado':'Acesso concedido', 'Status':'To Do', 'Comentários':'' },
-      { 'CT ID':'CT-002', 'EF ID':'EF-002', 'Cenário':'Aprovação de nota fiscal', 'Funcionalidade':'Fiscal/NF-e', 'Área':'Financeiro', 'Responsável':'Maria Costa', 'Data Planejada':'02/06/2025', 'Pré-condições':'NF-e pendente no portal', 'Dado':'a NF-e está no portal de aprovações', 'Quando':'o aprovador clica em Aprovar', 'Então':'o sistema registra a aprovação no ERP', 'Resultado Esperado':'NF-e aprovada', 'Status':'Em Teste', 'Comentários':'Verificar integração' },
-      { 'CT ID':'CT-003', 'EF ID':'EF-003', 'Cenário':'Emissão de pedido de compra', 'Funcionalidade':'Procurement', 'Área':'Logística', 'Responsável':'Ana Costa', 'Data Planejada':'03/06/2025', 'Pré-condições':'Fornecedor cadastrado', 'Dado':'o usuário está no módulo de compras', 'Quando':'ele preenche e emite o pedido', 'Então':'o sistema gera o PC e notifica', 'Resultado Esperado':'PC emitido com sucesso', 'Status':'Sucesso', 'Comentários':'' },
-    ]
+    const example = [{
+      'CT ID':             'CT-001',
+      'EF ID':             'EF-001',
+      'Cenário':           'Login com credenciais válidas retorna acesso ao dashboard',
+      'Projeto':           'ERP-Migração v1.0',
+      'Funcionalidade':    'Autenticação',
+      'Área':              'TI',
+      'Responsável':       'João Silva',
+      'Data Planejada':    '2025-06-01',
+      'Pré-condições':     'Usuário cadastrado e ativo no sistema',
+      'Dado':              'o usuário está na tela de login',
+      'Quando':            'ele informa credenciais válidas e clica em Entrar',
+      'Então':             'o sistema redireciona ao dashboard e exibe o nome do usuário',
+      'Resultado Esperado':'Acesso concedido com redirecionamento ao dashboard',
+      'Status':            'To Do',
+      'Comentários':       '',
+    }]
+
     const ws = XLSX.utils.json_to_sheet(example)
-    // Style header row width
     ws['!cols'] = [
-      {wch:8},{wch:8},{wch:35},{wch:20},{wch:12},{wch:16},{wch:14},
-      {wch:25},{wch:30},{wch:30},{wch:30},{wch:25},{wch:10},{wch:20},
+      {wch:8},{wch:8},{wch:45},{wch:20},{wch:20},{wch:12},{wch:16},
+      {wch:14},{wch:30},{wch:30},{wch:35},{wch:40},{wch:30},{wch:10},{wch:20},
     ]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Cenários Exemplo')

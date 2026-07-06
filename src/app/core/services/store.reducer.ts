@@ -9,9 +9,10 @@ export interface AppState {
   users:          User[]
   versions:       Version[]
   plans:          TestPlan[]
-  selectedPlanId: string
-  loading:        boolean
+  selectedPlanId: string      // '' = Todos os Projetos (default)
   globalSearch:   string
+  loading:        boolean
+  error:          string | null
   theme:          'light' | 'dark'
 }
 
@@ -22,61 +23,59 @@ export const initialState: AppState = {
   users:          [],
   versions:       [],
   plans:          [],
-  selectedPlanId: '',
-  loading:        false,
+  selectedPlanId: '',   // ITEM 3/6: '' = Todos os Projetos por padrão
   globalSearch:   '',
+  loading:        false,
+  error:          null,
   theme:          'light',
 }
 
 export const appReducer = createReducer(
   initialState,
 
-  // Bootstrap
-  on(A.bootstrap,        (s) => ({ ...s, loading: true })),
-  on(A.bootstrapSuccess, (s, { scenarios, issues, areas, users, versions, plans }) => ({
-    ...s, scenarios, issues, areas, users, versions, plans,
-    selectedPlanId: plans[0]?.id ?? '',
-    loading: false,
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
+  on(A.bootstrap, state => ({ ...state, loading: true, error: null })),
+  on(A.bootstrapSuccess, (state, { scenarios, issues, areas, users, versions, plans }) => ({
+    ...state, loading: false, scenarios, issues, areas, users, versions, plans,
   })),
-  on(A.bootstrapFailure, (s) => ({ ...s, loading: false })),
+  on(A.bootstrapFailure, (state, { error }) => ({ ...state, loading: false, error })),
 
-  // Plan
-  on(A.selectPlan,   (s, { id }) => ({ ...s, selectedPlanId: id })),
-  on(A.addPlan,      (s, { plan }) => ({ ...s, plans: [plan, ...s.plans], selectedPlanId: plan.id })),
-  on(A.updatePlan,   (s, { plan }) => ({ ...s, plans: s.plans.map(p => p.id === plan.id ? plan : p) })),
-  on(A.concludePlan, (s, { id }) => ({
-    ...s,
-    plans: s.plans.map(p => p.id === id
-      ? { ...p, status: 'concluido' as const, concluded_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-      : p
-    ),
+  // ── Plans ──────────────────────────────────────────────────────────────────
+  on(A.addPlan, (state, { plan }) => ({ ...state, plans: [...state.plans, plan] })),
+  on(A.updatePlan, (state, { plan }) => ({
+    ...state, plans: state.plans.map(p => p.id === plan.id ? plan : p)
   })),
+  on(A.concludePlan, (state, { id }) => ({
+    ...state,
+    plans: state.plans.map(p => p.id === id ? { ...p, status: 'concluido', concluded_at: new Date().toISOString() } : p),
+    selectedPlanId: state.selectedPlanId === id ? '' : state.selectedPlanId,
+  })),
+  on(A.selectPlan, (state, { planId }) => ({ ...state, selectedPlanId: planId ?? '' })),
 
-  // Scenarios
-  on(A.addScenario,    (s, { scenario }) => ({ ...s, scenarios: [...s.scenarios, scenario] })),
-  on(A.updateScenario, (s, { scenario }) => ({ ...s, scenarios: s.scenarios.map(x => x.id === scenario.id ? scenario : x) })),
-  on(A.deleteScenario, (s, { id })       => ({ ...s, scenarios: s.scenarios.filter(x => x.id !== id) })),
+  // ── Scenarios ──────────────────────────────────────────────────────────────
+  on(A.addScenario,    (state, { scenario }) => ({ ...state, scenarios: [...state.scenarios, scenario] })),
+  on(A.updateScenario, (state, { scenario }) => ({ ...state, scenarios: state.scenarios.map(s => s.id === scenario.id ? scenario : s) })),
+  on(A.deleteScenario, (state, { id })       => ({ ...state, scenarios: state.scenarios.filter(s => s.id !== id) })),
 
-  // Issues
-  on(A.addIssue,    (s, { issue }) => ({ ...s, issues: [issue, ...s.issues] })),
-  on(A.updateIssue, (s, { issue }) => ({ ...s, issues: s.issues.map(x => x.id === issue.id ? issue : x) })),
-  on(A.deleteIssue, (s, { id })    => ({ ...s, issues: s.issues.filter(x => x.id !== id) })),
+  // ── Issues ─────────────────────────────────────────────────────────────────
+  on(A.addIssue,    (state, { issue }) => ({ ...state, issues: [...state.issues, issue] })),
+  on(A.updateIssue, (state, { issue }) => ({ ...state, issues: state.issues.map(i => i.id === issue.id ? issue : i) })),
+  on(A.deleteIssue, (state, { id })    => ({ ...state, issues: state.issues.filter(i => i.id !== id) })),
 
-  // Areas
-  on(A.addArea,    (s, { area }) => ({ ...s, areas: [...s.areas, area] })),
-  on(A.updateArea, (s, { area }) => ({ ...s, areas: s.areas.map(x => x.id === area.id ? area : x) })),
-  on(A.deleteArea, (s, { id })   => ({ ...s, areas: s.areas.filter(x => x.id !== id) })),
+  // ── Areas ──────────────────────────────────────────────────────────────────
+  on(A.addArea,    (state, { area }) => ({ ...state, areas: [...state.areas, area] })),
+  on(A.updateArea, (state, { area }) => ({ ...state, areas: state.areas.map(a => a.id === area.id ? area : a) })),
+  on(A.deleteArea, (state, { id })   => ({ ...state, areas: state.areas.filter(a => a.id !== id) })),
 
-  // Users
-  on(A.addUser,    (s, { user }) => ({ ...s, users: [...s.users, user] })),
-  on(A.updateUser, (s, { user }) => ({ ...s, users: s.users.map(x => x.id === user.id ? user : x) })),
-  on(A.deleteUser, (s, { id })   => ({ ...s, users: s.users.filter(x => x.id !== id) })),
+  // ── Users ──────────────────────────────────────────────────────────────────
+  on(A.addUser,    (state, { user }) => ({ ...state, users: [...state.users, user] })),
+  on(A.updateUser, (state, { user }) => ({ ...state, users: state.users.map(u => u.id === user.id ? user : u) })),
+  on(A.deleteUser, (state, { id })   => ({ ...state, users: state.users.filter(u => u.id !== id) })),
 
-  // Versions
-  on(A.addVersion, (s, { version }) => ({ ...s, versions: [version, ...s.versions] })),
+  // ── Versions ───────────────────────────────────────────────────────────────
+  on(A.addVersion, (state, { version }) => ({ ...state, versions: [...state.versions, version] })),
 
-  // UI
-  on(A.setGlobalSearch, (s, { query }) => ({ ...s, globalSearch: query })),
-  on(A.setTheme,        (s, { theme }) => ({ ...s, theme })),
-  on(A.setLoading,      (s, { loading }) => ({ ...s, loading })),
+  // ── UI ─────────────────────────────────────────────────────────────────────
+  on(A.setGlobalSearch, (state, { search }) => ({ ...state, globalSearch: search })),
+  on(A.setTheme,        (state, { theme })  => ({ ...state, theme })),
 )
