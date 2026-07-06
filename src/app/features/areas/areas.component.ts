@@ -6,7 +6,7 @@ import { MatIconModule } from '@angular/material/icon'
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component'
 import { selectAreas, selectUsers, selectScenarios, selectSelectedPlanId, selectIsProjectLocked } from '../../core/services/store.selectors'
-import { addArea, updateArea, deleteArea } from '../../core/services/store.actions'
+import { addArea, updateArea, deleteArea, updateUser } from '../../core/services/store.actions'
 import type { Area } from '../../core/models'
 import { map, combineLatest } from 'rxjs'
 
@@ -242,9 +242,9 @@ export class AreasComponent implements OnInit {
       const shouldBeMember     = members.includes(user.name)
       const isInThisArea       = user.area_name === areaName
       if (shouldBeMember && !isInThisArea) {
-        this.store.dispatch({ type: '[Users] Update User', user: { ...user, area_name: areaName } } as any)
+        this.store.dispatch(updateUser({ user: { ...user, area_name: areaName } }))
       } else if (!shouldBeMember && isInThisArea) {
-        this.store.dispatch({ type: '[Users] Update User', user: { ...user, area_name: '' } } as any)
+        this.store.dispatch(updateUser({ user: { ...user, area_name: '' } }))
       }
     })
   }
@@ -255,7 +255,7 @@ export class AreasComponent implements OnInit {
     const members = (a as any).members ?? []
     members.forEach((name: string) => {
       const user = this.users.find(u => u.name === name && u.area_name === a.name)
-      if (user) this.store.dispatch({ type: '[Users] Update User', user: { ...user, area_name: '' } } as any)
+      if (user) this.store.dispatch(updateUser({ user: { ...user, area_name: '' } }))
     })
     this.store.dispatch(deleteArea({ id: a.id }))
     this.snack.open('Área excluída.','OK',{duration:3000})

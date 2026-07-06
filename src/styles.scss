@@ -68,3 +68,12 @@ body {
 /* ─── Utilities ──────────────────────────────────────────────────────────────── */
 .truncate    { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .text-muted  { color: #888780; font-size: 12px; }
+
+/* ── Tooltip de regras de uso ── */
+.usage-tooltip {
+  white-space: pre-line !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  max-width: 280px !important;
+  padding: 10px 14px !important;
+}

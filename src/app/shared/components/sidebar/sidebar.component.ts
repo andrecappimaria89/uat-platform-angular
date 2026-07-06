@@ -20,7 +20,14 @@ interface NavItem {
   imports:    [CommonModule, RouterLink, RouterLinkActive, MatIconModule, MatTooltipModule],
   template: `
     <aside class="sidebar">
-      <div class="sidebar-logo">
+      <div class="sidebar-logo"
+        matTooltip="Regra de utilização:
+1. Criar usuário
+2. Criar área e atrelar o usuário à área correspondente
+3. Cadastrar o Plano de Teste"
+        matTooltipPosition="right"
+        matTooltipClass="usage-tooltip"
+        style="cursor:help">
         <span class="brand">UAT</span>Platform
         <small>v3.1 · Homologação</small>
       </div>

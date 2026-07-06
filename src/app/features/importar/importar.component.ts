@@ -1,10 +1,11 @@
-import { Component } from '@angular/core'
+import { Component, OnInit } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { Store } from '@ngrx/store'
 import { MatIconModule } from '@angular/material/icon'
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component'
 import { addScenario } from '../../core/services/store.actions'
+import { selectPlans } from '../../core/services/store.selectors'
 import * as XLSX from 'xlsx'
 
 @Component({
@@ -96,10 +97,11 @@ import * as XLSX from 'xlsx'
     .err-table td { padding:6px 10px; border-bottom:0.5px solid rgba(0,0,0,.05); }
   `],
 })
-export class ImportarComponent {
+export class ImportarComponent implements OnInit {
   result: any = null
+  plans: any[] = []
   requiredCols = ['CT ID', 'Cenário', 'Status']
-  optionalCols = ['EF ID', 'Funcionalidade', 'Área', 'Responsável', 'Data Planejada', 'Pré-condições', 'Dado', 'Quando', 'Então', 'Resultado Esperado', 'Comentários']
+  optionalCols = ['Projeto', 'EF ID', 'Funcionalidade', 'Área', 'Responsável', 'Data Planejada', 'Pré-condições', 'Dado', 'Quando', 'Então', 'Resultado Esperado', 'Comentários']
 
   private statusMap: Record<string,string> = {
     'to do':'todo','em teste':'em_teste','bloqueado':'bloqueado',
@@ -107,6 +109,11 @@ export class ImportarComponent {
   }
 
   constructor(private store: Store, private snack: MatSnackBar) {}
+
+  ngOnInit() {
+    // ITEM 5: carrega planos para mapear nome → project_id na importação
+    this.store.select(selectPlans).subscribe(p => this.plans = p)
+  }
 
   onFile(e: any)   { const f = e.target.files?.[0]; if (f) this.processFile(f) }
   onDrop(e: any)   { e.preventDefault(); const f = e.dataTransfer?.files[0]; if (f) this.processFile(f) }
@@ -150,6 +157,16 @@ export class ImportarComponent {
       }
 
       ids.add(ctId)
+
+      // ITEM 5: mapeia coluna "Projeto" ao project_id pelo nome (retrocompatível — se não tiver a coluna, project_id fica undefined)
+      let project_id: string | undefined
+      if (row['Projeto']) {
+        const matched = this.plans.find(p =>
+          p.project.trim().toLowerCase() === String(row['Projeto']).trim().toLowerCase()
+        )
+        if (matched) project_id = matched.id
+      }
+
       this.store.dispatch(addScenario({ scenario: {
         id:               crypto.randomUUID(),
         ct_id:            ctId,
@@ -164,6 +181,7 @@ export class ImportarComponent {
         expected_result:  row['Resultado Esperado'] || undefined,
         status:           status as any,
         comments:         row['Comentários'] || undefined,
+        project_id,
         created_at:       new Date().toISOString(),
         updated_at:       new Date().toISOString(),
       }}))
