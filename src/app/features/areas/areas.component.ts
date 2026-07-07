@@ -104,7 +104,7 @@ import { map, combineLatest } from 'rxjs'
     </div>
   `,
   styles: [`
-    .page { display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; }
+    .page { display:flex; flex-direction:column; min-height:100%; }
     .content { padding:24px; display:flex; flex-direction:column; gap:16px; }
     .card { background:white; border:0.5px solid rgba(0,0,0,.08); border-radius:12px; padding:20px; }
     .form-card { border:1.5px solid #185FA5; background:#F8FBFF; }

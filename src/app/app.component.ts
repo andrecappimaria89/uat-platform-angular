@@ -60,7 +60,7 @@ import { SupabaseService } from './core/services/supabase.service'
       display: flex;
       flex-direction: column;
       min-height: 0;
-      overflow: hidden;
+      overflow-y: auto;
     }
     .db-warning {
       display: flex;

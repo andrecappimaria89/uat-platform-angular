@@ -134,7 +134,7 @@ import type { TestPlan } from '../../core/models'
     </div>
   `,
   styles: [`
-    .page { display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; }
+    .page { display:flex; flex-direction:column; min-height:100%; }
     .content { padding:24px; display:flex; flex-direction:column; gap:16px; max-width:960px; }
     .lock-banner { display:flex; align-items:center; gap:8px; background:#FAEEDA; color:#854F0B; padding:12px 16px; border-radius:10px; font-size:13px; font-weight:500; }
     .card { background:white; border:0.5px solid rgba(0,0,0,.08); border-radius:12px; padding:20px; }

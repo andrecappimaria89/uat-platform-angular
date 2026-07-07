@@ -75,7 +75,7 @@ import { selectIssues, selectSelectedPlanId } from '../../core/services/store.se
     </div>
   `,
   styles: [`
-    .page { display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; }
+    .page { display:flex; flex-direction:column; min-height:100%; }
     .content { padding:24px; display:flex; flex-direction:column; gap:16px; }
     .alert-box { display:flex; align-items:flex-start; gap:10px; background:#FAEEDA; color:#854F0B; padding:12px 16px; border-radius:10px; font-size:13px; font-weight:500; }
     .alert-box mat-icon { margin-top:1px; flex-shrink:0; }

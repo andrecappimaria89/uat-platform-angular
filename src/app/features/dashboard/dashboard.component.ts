@@ -127,7 +127,7 @@ Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEleme
     </div>
   `,
   styles: [`
-    .page { display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; }
+    .page { display:flex; flex-direction:column; min-height:100%; }
     .content { padding:24px; display:flex; flex-direction:column; gap:16px; }
     .metrics-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
     .metric-card { background:white; border:0.5px solid rgba(0,0,0,.08); border-radius:10px; padding:14px; border-left:3px solid transparent; }
