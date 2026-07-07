@@ -309,7 +309,7 @@ export class IssuesComponent implements OnInit, OnDestroy {
       this.snack.open('Issue atualizada.','OK',{duration:3000})
     } else {
       this.store.dispatch(addIssue({issue:{...this.form,id:crypto.randomUUID(),created_at:now,updated_at:now} as Issue}))
-      this.snack.open('Issue registrada.','OK',{duration:3000})
+      this.snack.open('Salvando issue...', undefined, {duration:2000})
     }
     this.closeForm()
   }

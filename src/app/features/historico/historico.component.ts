@@ -3,12 +3,14 @@ import { CommonModule } from '@angular/common'
 import { FormsModule } from '@angular/forms'
 import { Store } from '@ngrx/store'
 import { MatIconModule } from '@angular/material/icon'
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component'
+import { addVersion } from '../../core/services/store.actions'
 
 @Component({
   selector: 'app-historico',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule, TopbarComponent],
+  imports: [CommonModule, FormsModule, MatIconModule, MatSnackBarModule, TopbarComponent],
   template: `
     <div class="page">
       <app-topbar title="Histórico de Versões">
@@ -101,7 +103,7 @@ export class HistoricoComponent implements OnInit {
   users:    any[] = []
   form: any = { version: '', date: '', responsible_name: '', description: '', justification: '' }
 
-  constructor(private store: Store) {}
+  constructor(private store: Store, private snack: MatSnackBar) {}
 
   ngOnInit() {
     // ITEM 7: Ordenação cronológica — mais recente primeiro
@@ -117,10 +119,10 @@ export class HistoricoComponent implements OnInit {
 
   save() {
     if (!this.form.version || !this.form.description) return
-    this.store.dispatch({
-      type: '[Versions] Add',
+    this.store.dispatch(addVersion({
       version: { ...this.form, id: crypto.randomUUID(), created_at: new Date().toISOString() }
-    } as any)
+    }))
+    this.snack.open('Salvando versão...', undefined, { duration: 2000 })
     this.showForm = false
     this.form = { version: '', date: '', responsible_name: '', description: '', justification: '' }
   }

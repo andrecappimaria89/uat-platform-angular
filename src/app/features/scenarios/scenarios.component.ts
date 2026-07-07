@@ -390,7 +390,7 @@ export class ScenariosComponent implements OnInit, OnDestroy {
       this.snack.open('Cenário atualizado.','OK',{duration:3000})
     } else {
       this.store.dispatch(addScenario({ scenario:{ ...this.form,id:crypto.randomUUID(),created_at:now,updated_at:now } as Scenario }))
-      this.snack.open('Cenário criado.','OK',{duration:3000})
+      this.snack.open('Salvando cenário...', undefined, { duration: 2000 })
     }
     this.closeForm()
   }

@@ -214,11 +214,29 @@ export class DataService {
     )
   }
 
-  createUser(u: User): Observable<User | null> {
-    if (!this.db) { console.error('[DataService] createUser: Supabase não configurado — usuário NÃO foi salvo.'); return of(null) }
-    return from(this.db.from('profiles').insert([{ id: u.id, name: u.name, email: u.email, role: u.role, area_name: u.area_name, avatar_initials: u.avatar_initials, active: u.active }]).select().single()).pipe(
-      map(({ data, error }) => { if (error) throw error; return this.mapUser(data) }),
-      catchError(e => { console.error('createUser:', e.message); return of(null) })
+  createUser(u: Omit<User, 'id'>): Observable<User> {
+    // IMPORTANTE: não inserimos direto em `profiles` a partir do frontend.
+    // `profiles.id` tem FOREIGN KEY para `auth.users(id)` — um id gerado no
+    // navegador (crypto.randomUUID()) nunca existe em auth.users, então o
+    // insert é sempre rejeitado pelo Postgres (violação de FK). A criação
+    // real do usuário no Auth só pode ser feita com a service_role key,
+    // por isso passa pela Netlify Function `create-user`.
+    return from(
+      fetch('/.netlify/functions/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: u.name, email: u.email, role: u.role,
+          area_name: u.area_name, avatar_initials: u.avatar_initials,
+        }),
+      }).then(async res => {
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(body.error || `Erro ${res.status} ao criar usuário.`)
+        return body.user
+      })
+    ).pipe(
+      map(data => this.mapUser(data)),
+      catchError(e => { console.error('createUser:', e.message); return throwError(() => e) })
     )
   }
 
@@ -249,7 +267,7 @@ export class DataService {
   }
 
   createVersion(v: Version): Observable<Version | null> {
-    if (!this.db) return of(v)
+    if (!this.db) { console.error('[DataService] createVersion: Supabase não configurado.'); return of(null) }
     return from(this.db.from('versions').insert([{ id: v.id, version: v.version, date: v.date, responsible_name: v.responsible_name, description: v.description, justification: v.justification, plan_id: v.plan_id || null }]).select().single()).pipe(
       map(({ data, error }) => { if (error) throw error; return this.mapVersion(data) }),
       catchError(e => { console.error('createVersion:', e.message); return of(null) })
@@ -266,8 +284,8 @@ export class DataService {
     )
   }
 
-  createPlan(p: TestPlan): Observable<boolean> {
-    if (!this.db) return of(true)
+  createPlan(p: TestPlan): Observable<TestPlan | null> {
+    if (!this.db) { console.error('[DataService] createPlan: Supabase não configurado.'); return of(null) }
     return from(this.db.from('test_plans').insert([{
       id: p.id, project: p.project, objective: p.objective, scope: p.scope, systems: p.systems,
       responsible_area: p.responsible_area, stakeholders: p.stakeholders, executors: p.executors,
@@ -275,14 +293,14 @@ export class DataService {
       premises: p.premises, dependencies: p.dependencies, risks: p.risks,
       entry_criteria: p.entry_criteria, exit_criteria: p.exit_criteria, observations: p.observations,
       status: p.status ?? 'aberto',
-    }])).pipe(
-      map(({ error }) => { if (error) throw error; return true }),
-      catchError(e => { console.error('createPlan:', e.message); return of(false) })
+    }]).select().single()).pipe(
+      map(({ data, error }) => { if (error) throw error; return this.mapPlan(data) }),
+      catchError(e => { console.error('createPlan:', e.message); return of(null) })
     )
   }
 
   upsertPlan(p: TestPlan): Observable<boolean> {
-    if (!this.db) return of(true)
+    if (!this.db) { console.error('[DataService] upsertPlan: Supabase não configurado.'); return of(false) }
     return from(this.db.from('test_plans').upsert({
       id: p.id, project: p.project, objective: p.objective, scope: p.scope, systems: p.systems,
       responsible_area: p.responsible_area, stakeholders: p.stakeholders, executors: p.executors,

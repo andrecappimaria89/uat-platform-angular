@@ -40,9 +40,9 @@ export const appReducer = createReducer(
   })),
   on(A.bootstrapFailure, (s) => ({ ...s, loading: false })),
 
-  // Plan
+  // Plan — addPlan só entra no estado em addPlanSuccess (confirmado no Supabase)
   on(A.selectPlan,   (s, { id }) => ({ ...s, selectedPlanId: id })),
-  on(A.addPlan, (s, { plan }) => ({ ...s, plans: [plan, ...s.plans] })),
+  on(A.addPlanSuccess, (s, { plan }) => ({ ...s, plans: [plan, ...s.plans] })),
   on(A.updatePlan,   (s, { plan }) => ({ ...s, plans: s.plans.map(p => p.id === plan.id ? plan : p) })),
   on(A.concludePlan, (s, { id }) => ({
     ...s,
@@ -52,28 +52,31 @@ export const appReducer = createReducer(
     ),
   })),
 
-  // Scenarios
-  on(A.addScenario,    (s, { scenario }) => ({ ...s, scenarios: [...s.scenarios, scenario] })),
+  // Scenarios — addScenario só entra no estado em addScenarioSuccess
+  on(A.addScenarioSuccess, (s, { scenario }) => ({ ...s, scenarios: [...s.scenarios, scenario] })),
   on(A.updateScenario, (s, { scenario }) => ({ ...s, scenarios: s.scenarios.map(x => x.id === scenario.id ? scenario : x) })),
   on(A.deleteScenario, (s, { id })       => ({ ...s, scenarios: s.scenarios.filter(x => x.id !== id) })),
 
-  // Issues
-  on(A.addIssue,    (s, { issue }) => ({ ...s, issues: [issue, ...s.issues] })),
+  // Issues — addIssue só entra no estado em addIssueSuccess
+  on(A.addIssueSuccess, (s, { issue }) => ({ ...s, issues: [issue, ...s.issues] })),
   on(A.updateIssue, (s, { issue }) => ({ ...s, issues: s.issues.map(x => x.id === issue.id ? issue : x) })),
   on(A.deleteIssue, (s, { id })    => ({ ...s, issues: s.issues.filter(x => x.id !== id) })),
 
-  // Areas
-  on(A.addArea,    (s, { area }) => ({ ...s, areas: [...s.areas, area] })),
+  // Areas — addArea só entra no estado em addAreaSuccess
+  on(A.addAreaSuccess, (s, { area }) => ({ ...s, areas: [...s.areas, area] })),
   on(A.updateArea, (s, { area }) => ({ ...s, areas: s.areas.map(x => x.id === area.id ? area : x) })),
   on(A.deleteArea, (s, { id })   => ({ ...s, areas: s.areas.filter(x => x.id !== id) })),
 
   // Users
-  on(A.addUser,    (s, { user }) => ({ ...s, users: [...s.users, user] })),
+  // addUser NÃO atualiza o estado aqui (seria otimista/sem confirmação).
+  // O usuário só entra na lista em addUserSuccess, depois que a Netlify
+  // Function confirma que ele foi criado de fato no Auth + profiles.
+  on(A.addUserSuccess, (s, { user }) => ({ ...s, users: [...s.users, user] })),
   on(A.updateUser, (s, { user }) => ({ ...s, users: s.users.map(x => x.id === user.id ? user : x) })),
   on(A.deleteUser, (s, { id })   => ({ ...s, users: s.users.filter(x => x.id !== id) })),
 
-  // Versions
-  on(A.addVersion, (s, { version }) => ({ ...s, versions: [version, ...s.versions] })),
+  // Versions — addVersion só entra no estado em addVersionSuccess
+  on(A.addVersionSuccess, (s, { version }) => ({ ...s, versions: [version, ...s.versions] })),
 
   // UI
   on(A.setGlobalSearch, (s, { query }) => ({ ...s, globalSearch: query })),

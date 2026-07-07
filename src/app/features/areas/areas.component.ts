@@ -235,7 +235,7 @@ export class AreasComponent implements OnInit {
       const newArea = { id: crypto.randomUUID(), ...this.form, name: this.form.name!.trim(), members, created_at: new Date().toISOString() } as any
       this.store.dispatch(addArea({ area: newArea }))
       this.syncUsersAreaName(newArea.name, members)
-      this.snack.open('Área criada.','OK',{duration:3000})
+      this.snack.open('Salvando área...', undefined, {duration:2000})
     }
     this.closeForm()
   }

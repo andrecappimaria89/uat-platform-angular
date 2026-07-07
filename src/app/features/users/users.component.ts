@@ -180,12 +180,16 @@ export class UsersComponent implements OnInit {
       this.store.dispatch(updateUser({ user: { ...this.editingUser, ...this.form, area_name: this.editingUser.area_name, avatar_initials: initials } as User }))
       this.snack.open('Usuário atualizado.', 'OK', { duration: 3000 })
     } else {
+      // O id NÃO é gerado aqui: profiles.id tem FK para auth.users(id),
+      // então o id real só existe depois que a Netlify Function cria o
+      // usuário no Supabase Auth. O sucesso/erro real é mostrado pelo
+      // effect addUserSuccess$/addUserFailure$ (store.effects.ts).
       this.store.dispatch(addUser({ user: {
-        ...this.form, id: crypto.randomUUID(),
+        ...this.form,
         role: 'executor', avatar_initials: initials,
         active: true, created_at: new Date().toISOString(),
-      } as User }))
-      this.snack.open('Usuário criado com perfil Executor.', 'OK', { duration: 3000 })
+      } as Omit<User, 'id'> }))
+      this.snack.open('Criando usuário...', undefined, { duration: 2000 })
     }
     this.closeForm()
   }

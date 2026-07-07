@@ -215,7 +215,7 @@ export class PlanComponent implements OnInit {
     this.store.dispatch(addPlan({ plan }))
     this.showNewForm = false
     this.resetNewForm()
-    this.snack.open('Plano criado com sucesso!', 'OK', { duration: 3000 })
+    this.snack.open('Salvando plano...', undefined, { duration: 2000 })
   }
 
   conclude(p: TestPlan) {
