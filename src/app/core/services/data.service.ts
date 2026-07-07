@@ -219,23 +219,18 @@ export class DataService {
     // `profiles.id` tem FOREIGN KEY para `auth.users(id)` — um id gerado no
     // navegador (crypto.randomUUID()) nunca existe em auth.users, então o
     // insert é sempre rejeitado pelo Postgres (violação de FK). A criação
-    // real do usuário no Auth só pode ser feita com a service_role key,
-    // por isso passa pela Netlify Function `create-user`.
-    return from(
-      fetch('/.netlify/functions/create-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: u.name, email: u.email, role: u.role,
-          area_name: u.area_name, avatar_initials: u.avatar_initials,
-        }),
-      }).then(async res => {
-        const body = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(body.error || `Erro ${res.status} ao criar usuário.`)
-        return body.user
-      })
-    ).pipe(
-      map(data => this.mapUser(data)),
+    // real do usuário no Auth só pode ser feita com a service_role key, que
+    // o Supabase injeta automaticamente na Edge Function `create-user`
+    // (supabase/functions/create-user) — por isso passamos por ela.
+    if (!this.db) { console.error('[DataService] createUser: Supabase não configurado.'); return throwError(() => new Error('Supabase não configurado.')) }
+    return from(this.db.functions.invoke('create-user', {
+      body: { name: u.name, email: u.email, role: u.role, area_name: u.area_name, avatar_initials: u.avatar_initials },
+    })).pipe(
+      map(({ data, error }) => {
+        if (error) throw error
+        if (data?.error) throw new Error(data.error)
+        return this.mapUser(data.user)
+      }),
       catchError(e => { console.error('createUser:', e.message); return throwError(() => e) })
     )
   }
