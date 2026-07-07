@@ -40,33 +40,42 @@ Deno.serve(async (req: Request) => {
     })
   }
 
-  // 1) Cria o usuário no Supabase Auth (profiles.id -> auth.users.id via FK)
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { name },
+  // 1) Cria o usuário no Supabase Auth já confirmado, com senha temporária
+  //    gerada automaticamente. Evita depender de envio de e-mail (SMTP) e
+  //    da validação mais estrita do fluxo de convite.
+  const tempPassword = crypto.randomUUID() + 'Aa1!'
+  const { data: created, error: createError } = await admin.auth.admin.createUser({
+    email,
+    password: tempPassword,
+    email_confirm: true,
+    user_metadata: { name },
   })
 
-  if (inviteError || !invited?.user) {
-    const msg = inviteError?.message?.includes('already been registered')
+  if (createError || !created?.user) {
+    const msg = createError?.message?.includes('already been registered')
       ? 'Este e-mail já está cadastrado no sistema.'
-      : (inviteError?.message || 'Falha ao criar usuário no Supabase Auth.')
+      : (createError?.message || 'Falha ao criar usuário no Supabase Auth.')
     return new Response(JSON.stringify({ error: msg }), {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 
-  const authUser = invited.user
+  const authUser = created.user
 
-  // 2) Agora que auth.users(id) existe, o insert em profiles satisfaz a FK
+  // 2) O banco já tem um trigger (on_auth_user_created -> handle_new_user)
+  //    que cria automaticamente uma linha básica em profiles (id, email,
+  //    name, avatar_initials) assim que o usuário é criado no Auth. Por
+  //    isso, aqui só ATUALIZAMOS essa linha com o role/área escolhidos no
+  //    formulário — inserir de novo causaria conflito de chave (409).
   const { data: profile, error: profileError } = await admin
     .from('profiles')
-    .insert([{
-      id: authUser.id,
-      name, email,
+    .update({
       role: role || 'executor',
       area_name: area_name || null,
-      avatar_initials: avatar_initials || null,
+      avatar_initials: avatar_initials || undefined,
       active: true,
-    }])
+    })
+    .eq('id', authUser.id)
     .select()
     .single()
 

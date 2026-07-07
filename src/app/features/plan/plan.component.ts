@@ -17,7 +17,7 @@ import type { TestPlan } from '../../core/models'
   template: `
     <div class="page">
       <app-topbar title="Plano de Testes">
-        <button class="btn-outline" (click)="showNewForm = !showNewForm; editing = false">
+        <button class="btn-outline" (click)="openNewForm()">
           <mat-icon>add</mat-icon> Novo Plano
         </button>
         <ng-container *ngIf="plan$ | async as p">
@@ -45,7 +45,7 @@ import type { TestPlan } from '../../core/models'
         </div>
 
         <!-- Novo Plano Form -->
-        <div *ngIf="showNewForm" class="card new-plan-card">
+        <div *ngIf="showNewForm" class="card new-plan-card form-card">
           <h3 class="card-title"><mat-icon>add_circle</mat-icon> Criar Novo Plano de Testes</h3>
           <div class="form-grid">
             <div class="form-field"><label>Projeto *</label><input [(ngModel)]="newForm.project" placeholder="Nome do projeto"></div>
@@ -99,7 +99,7 @@ import type { TestPlan } from '../../core/models'
           <div *ngIf="!p" class="empty-state">
             <mat-icon>assignment</mat-icon>
             <p>Nenhum plano de testes encontrado.</p>
-            <button class="btn-primary" (click)="showNewForm = true">
+            <button class="btn-primary" (click)="openNewForm()">
               <mat-icon>add</mat-icon> Criar Primeiro Plano
             </button>
           </div>
@@ -134,7 +134,7 @@ import type { TestPlan } from '../../core/models'
     </div>
   `,
   styles: [`
-    .page { display:flex; flex-direction:column; flex:1; overflow-y:auto; }
+    .page { display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; }
     .content { padding:24px; display:flex; flex-direction:column; gap:16px; max-width:960px; }
     .lock-banner { display:flex; align-items:center; gap:8px; background:#FAEEDA; color:#854F0B; padding:12px 16px; border-radius:10px; font-size:13px; font-weight:500; }
     .card { background:white; border:0.5px solid rgba(0,0,0,.08); border-radius:12px; padding:20px; }
@@ -190,6 +190,14 @@ export class PlanComponent implements OnInit {
       premises: '', dependencies: '', risks: '',
       entry_criteria: '', exit_criteria: '', observations: '',
       status: 'aberto',
+    }
+  }
+
+  openNewForm() {
+    this.showNewForm = !this.showNewForm
+    this.editing = false
+    if (this.showNewForm) {
+      setTimeout(() => document.querySelector('.form-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     }
   }
 

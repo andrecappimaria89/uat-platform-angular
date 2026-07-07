@@ -59,6 +59,7 @@ import { SupabaseService } from './core/services/supabase.service'
       flex: 1;
       display: flex;
       flex-direction: column;
+      min-height: 0;
       overflow: hidden;
     }
     .db-warning {

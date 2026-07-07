@@ -73,7 +73,7 @@ import * as XLSX from 'xlsx'
     </div>
   `,
   styles: [`
-    .page { display:flex; flex-direction:column; flex:1; overflow-y:auto; }
+    .page { display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; }
     .content { padding:24px; display:flex; flex-direction:column; gap:16px; }
     .actions-row { display:flex; gap:12px; flex-wrap:wrap; }
     .drop-zone { border:2px dashed rgba(0,0,0,.15); border-radius:12px; padding:48px 24px; text-align:center; cursor:pointer; color:#888780; transition:.15s; }

@@ -204,7 +204,7 @@ import type { Scenario, TestPlan } from '../../core/models'
     </div>
   `,
   styles: [`
-    .page { display:flex; flex-direction:column; flex:1; overflow-y:auto; }
+    .page { display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; }
     .content { padding:24px; display:flex; flex-direction:column; gap:14px; }
     .proj-col { color:#888780; font-size:12px; }
     .ct-id { font-weight:600; color:#185FA5; cursor:pointer; }
