@@ -176,7 +176,8 @@ export class UsersComponent implements OnInit {
       .map(w => w[0]).slice(0, 2).join('').toUpperCase()
 
     if (this.editingUser) {
-      this.store.dispatch(updateUser({ user: { ...this.editingUser, ...this.form, avatar_initials: initials } as User }))
+      // ITEM 2: area_name preservado — não pode ser alterado nesta tela, apenas em Gestão de Áreas
+      this.store.dispatch(updateUser({ user: { ...this.editingUser, ...this.form, area_name: this.editingUser.area_name, avatar_initials: initials } as User }))
       this.snack.open('Usuário atualizado.', 'OK', { duration: 3000 })
     } else {
       this.store.dispatch(addUser({ user: {

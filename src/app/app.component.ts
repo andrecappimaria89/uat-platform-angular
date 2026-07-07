@@ -20,24 +20,25 @@ import { SupabaseService } from './core/services/supabase.service'
       <!-- Alerta crítico: Supabase não conectado -->
       <div *ngIf="!supabaseReady" class="db-warning">
         <mat-icon>warning</mat-icon>
-        <div>
-          <strong>Supabase não configurado</strong> — os dados não estão sendo salvos.
-          Os dados cadastrados agora serão perdidos ao recarregar a página.
-          Verifique as variáveis de ambiente <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_ANON_KEY</code> no Netlify.
+        <span>
+          <strong>Atenção:</strong> Supabase não configurado — dados não estão sendo salvos e serão perdidos ao recarregar.
+          Verifique as variáveis <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_ANON_KEY</code> no Netlify.
+        </span>
+      </div>
+
+      <div class="shell-body">
+        <!-- Loading overlay -->
+        <div *ngIf="loading$ | async" class="loading-overlay">
+          <mat-spinner diameter="40"></mat-spinner>
+          <p>Carregando dados do Supabase...</p>
         </div>
+
+        <app-sidebar></app-sidebar>
+
+        <main class="main-content">
+          <router-outlet></router-outlet>
+        </main>
       </div>
-
-      <!-- Loading overlay -->
-      <div *ngIf="loading$ | async" class="loading-overlay">
-        <mat-spinner diameter="40"></mat-spinner>
-        <p>Carregando dados do Supabase...</p>
-      </div>
-
-      <app-sidebar></app-sidebar>
-
-      <main class="main-content">
-        <router-outlet></router-outlet>
-      </main>
     </div>
   `,
   styles: [`
@@ -46,33 +47,38 @@ import { SupabaseService } from './core/services/supabase.service'
       flex-direction: column;
       height: 100vh;
       overflow: hidden;
+    }
+    .shell-body {
+      display: flex;
+      flex-direction: row;
+      flex: 1;
+      overflow: hidden;
       position: relative;
     }
     .main-content {
       flex: 1;
-      overflow-y: auto;
       display: flex;
+      flex-direction: column;
       overflow: hidden;
     }
-    /* Alerta de Supabase não configurado */
     .db-warning {
       display: flex;
-      align-items: flex-start;
-      gap: 10px;
+      align-items: center;
+      gap: 8px;
       background: #A32D2D;
       color: white;
-      padding: 10px 20px;
+      padding: 8px 20px;
       font-size: 13px;
       font-weight: 500;
       flex-shrink: 0;
-      z-index: 100;
+      z-index: 200;
     }
-    .db-warning mat-icon { flex-shrink: 0; margin-top: 1px; }
-    .db-warning code { background: rgba(255,255,255,.2); padding: 1px 6px; border-radius: 4px; font-family: monospace; }
+    .db-warning mat-icon { flex-shrink: 0; font-size: 18px; }
+    .db-warning code { background: rgba(255,255,255,.2); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; }
     .loading-overlay {
       position: absolute;
       inset: 0;
-      background: rgba(255,255,255,.85);
+      background: rgba(255,255,255,.9);
       z-index: 999;
       display: flex;
       flex-direction: column;
@@ -82,8 +88,6 @@ import { SupabaseService } from './core/services/supabase.service'
       font-size: 13px;
       color: #888780;
     }
-    /* Fix layout: sidebar + content side by side */
-    app-sidebar { flex-shrink: 0; }
   `],
 })
 export class AppComponent implements OnInit {
