@@ -163,7 +163,8 @@ export class AreasComponent implements OnInit {
     this.store.select(selectAreas),
     this.store.select(selectScenarios),
     this.store.select(selectSelectedPlanId),
-  ]).pipe(map(([areas, scenarios, planId]) =>
+    this.store.select(selectUsers),
+  ]).pipe(map(([areas, scenarios, planId, users]) =>
     areas.map(a => {
       const s        = scenarios.filter(sc => sc.area_name === a.name && (!planId || sc.project_id === planId))
       const total    = s.length
@@ -171,7 +172,10 @@ export class AreasComponent implements OnInit {
       const blocked  = s.filter(sc => sc.status === 'bloqueado').length
       const executed = s.filter(sc => sc.status !== 'todo').length
       const pct      = total > 0 ? Math.round((success / total) * 100) : 0
-      const members  = (a as any).members ?? []
+      const rawMembers = (a as any).members ?? []
+      // FIX: filtrar apenas membros que ainda existem como usuários cadastrados
+      const userNames = users.map((u:any) => u.name)
+      const members = rawMembers.filter((m: string) => userNames.includes(m))
       return { ...a, total, success, blocked, executed, pct, members }
     })
   ))
