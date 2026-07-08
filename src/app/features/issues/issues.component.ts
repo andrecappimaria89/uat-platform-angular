@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { FormsModule } from '@angular/forms'
 import { Store } from '@ngrx/store'
 import { Subject, combineLatest } from 'rxjs'
-import { takeUntil } from 'rxjs/operators'
+import { takeUntil, skip } from 'rxjs/operators'
 import { MatIconModule } from '@angular/material/icon'
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
 import { MatTooltipModule } from '@angular/material/tooltip'
@@ -27,6 +27,14 @@ import type { Issue, TestPlan, Scenario } from '../../core/models'
 
       <div class="content">
 
+        <!-- Aviso: exige seleção explícita do projeto no topo -->
+        <div *ngIf="!projectChosen" class="card select-project-prompt">
+          <mat-icon>filter_alt</mat-icon>
+          <p>Selecione um projeto (ou "Todos os Projetos") no seletor no topo da página para visualizar as issues.</p>
+        </div>
+
+        <ng-container *ngIf="projectChosen">
+
         <!-- Filters -->
         <div class="filters-bar">
           <input [(ngModel)]="search" (ngModelChange)="applyAll()" placeholder="Buscar ID, título..." class="input-filter">
@@ -47,6 +55,8 @@ import type { Issue, TestPlan, Scenario } from '../../core/models'
           </button>
           <span class="count-badge">{{ filtered.length }} resultado(s)</span>
         </div>
+
+        </ng-container>
 
         <!-- Form -->
         <div *ngIf="showForm" class="card form-card">
@@ -137,7 +147,7 @@ import type { Issue, TestPlan, Scenario } from '../../core/models'
         </div>
 
         <!-- Table -->
-        <div class="table-card">
+        <div class="table-card" *ngIf="projectChosen">
           <div *ngIf="paged.length === 0" class="empty-state">
             <mat-icon>bug_report</mat-icon>
             <p>Nenhuma issue encontrada.</p>
@@ -193,6 +203,9 @@ import type { Issue, TestPlan, Scenario } from '../../core/models'
     .page { display:flex; flex-direction:column; min-height:100%; }
     .content { padding:24px; display:flex; flex-direction:column; gap:14px; }
     .issue-id { font-weight:600; color:#A32D2D; }
+    .select-project-prompt { display:flex; align-items:center; gap:10px; padding:20px; color:#185FA5; background:#F8FBFF; border:1px dashed #185FA5; }
+    .select-project-prompt mat-icon { flex-shrink:0; }
+    .select-project-prompt p { margin:0; font-size:13px; font-weight:500; }
     .proj-col { color:#888780; font-size:12px; }
     .ct-ref { color:#185FA5; font-weight:500; }
     .clip { max-width:180px; }
@@ -202,7 +215,7 @@ import type { Issue, TestPlan, Scenario } from '../../core/models'
 export class IssuesComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>()
 
-  search=''; filterSev=''; filterPri=''; filterStatus=''; locked=false; formSubmitted=false
+  search=''; filterSev=''; filterPri=''; filterStatus=''; locked=false; formSubmitted=false; projectChosen=false
   allIssues:Issue[]=[]; filtered:Issue[]=[]; paged:Issue[]=[]; areas:any[]=[]; users:any[]=[]; allScenarios:Scenario[]=[]; openPlans:TestPlan[]=[]
   areaUsers: any[] = []  // ITEM 4: usuários da área selecionada no form
   filteredScenariosByProject: Scenario[] = []
@@ -219,6 +232,13 @@ export class IssuesComponent implements OnInit, OnDestroy {
   constructor(private store:Store, private snack:MatSnackBar) {}
 
   ngOnInit() {
+    // Só exibe as issues depois que o usuário selecionar explicitamente uma
+    // opção no seletor de projeto do topo (um projeto específico ou "Todos
+    // os Projetos") — skip(1) ignora o valor já existente ao entrar na
+    // página, contando só uma mudança feita de fato pelo usuário aqui.
+    this.store.select(selectSelectedPlanId).pipe(skip(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.projectChosen = true
+    })
     combineLatest([this.store.select(selectIssues), this.store.select(selectSelectedPlanId), this.store.select(selectIsProjectLocked)])
       .pipe(takeUntil(this.destroy$)).subscribe(([issues,planId,locked])=>{
         this.locked=locked

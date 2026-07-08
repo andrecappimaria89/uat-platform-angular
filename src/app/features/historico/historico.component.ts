@@ -1,11 +1,15 @@
-import { Component, OnInit } from '@angular/core'
+import { Component, OnInit, OnDestroy } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { FormsModule } from '@angular/forms'
 import { Store } from '@ngrx/store'
+import { Subject, combineLatest } from 'rxjs'
+import { takeUntil } from 'rxjs/operators'
 import { MatIconModule } from '@angular/material/icon'
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component'
 import { addVersion } from '../../core/services/store.actions'
+import { selectSelectedPlanId, selectPlans } from '../../core/services/store.selectors'
+import type { TestPlan } from '../../core/models'
 
 @Component({
   selector: 'app-historico',
@@ -25,6 +29,13 @@ import { addVersion } from '../../core/services/store.actions'
         <div *ngIf="showForm" class="card form-card">
           <h3 class="card-title"><mat-icon>add_circle</mat-icon> Registrar Nova Versão</h3>
           <div class="form-grid">
+            <div class="form-field full"><label>Plano de Teste * <span class="required-hint">(somente projetos abertos)</span></label>
+              <select [(ngModel)]="form.plan_id" [class.invalid]="formSubmitted && !form.plan_id">
+                <option value="">Selecione um projeto...</option>
+                <option *ngFor="let p of openPlans" [value]="p.id">{{ p.project }}</option>
+              </select>
+              <span *ngIf="formSubmitted && !form.plan_id" class="error-msg">Plano de Teste é obrigatório</span>
+            </div>
             <div class="form-field"><label>Versão *</label><input [(ngModel)]="form.version" placeholder="v3.2"></div>
             <div class="form-field"><label>Data *</label><input type="date" [(ngModel)]="form.date"></div>
             <div class="form-field full"><label>Responsável</label>
@@ -41,7 +52,7 @@ import { addVersion } from '../../core/services/store.actions'
             </div>
           </div>
           <div class="form-actions">
-            <button class="btn-outline" (click)="showForm = false">Cancelar</button>
+            <button class="btn-outline" (click)="showForm = false; formSubmitted = false">Cancelar</button>
             <button class="btn-primary" (click)="save()">
               <mat-icon>save</mat-icon> Salvar Versão
             </button>
@@ -56,13 +67,14 @@ import { addVersion } from '../../core/services/store.actions'
               <div class="timeline-content">
                 <div class="version-header">
                   <span class="version-badge">{{ v.version }}</span>
+                  <span class="version-plan" *ngIf="getPlanName(v.plan_id) as planName">{{ planName }}</span>
                   <span class="version-meta">{{ v.date | date:'dd/MM/yyyy' }} · {{ v.responsible_name }}</span>
                 </div>
                 <p class="version-desc">{{ v.description }}</p>
                 <p class="version-just" *ngIf="v.justification">{{ v.justification }}</p>
               </div>
             </div>
-            <div *ngIf="versions.length === 0" class="empty">Nenhuma versão registrada.</div>
+            <div *ngIf="versions.length === 0" class="empty">Nenhuma versão registrada{{ hasProjectFilter ? ' para o projeto selecionado' : '' }}.</div>
           </div>
         </div>
 
@@ -91,39 +103,67 @@ import { addVersion } from '../../core/services/store.actions'
     .timeline-content { flex:1; }
     .version-header { display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap; }
     .version-badge { background:#E6F1FB; color:#185FA5; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; }
+    .version-plan { background:#F0F0EC; color:#5A594F; font-size:11px; font-weight:500; padding:2px 8px; border-radius:12px; }
     .version-meta { font-size:12px; color:#888780; }
     .version-desc { font-size:13px; font-weight:500; }
     .version-just { font-size:12px; color:#888780; margin-top:2px; }
     .empty { text-align:center; padding:32px; color:#888780; }
+    .required-hint { font-weight:400; color:#888780; font-size:11px; }
+    select.invalid { border-color:#A32D2D !important; }
+    .error-msg { font-size:11px; color:#A32D2D; }
   `],
 })
-export class HistoricoComponent implements OnInit {
+export class HistoricoComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>()
+
   showForm = false
+  formSubmitted = false
   versions: any[] = []
   users:    any[] = []
-  form: any = { version: '', date: '', responsible_name: '', description: '', justification: '' }
+  openPlans: TestPlan[] = []
+  planMap: Record<string, string> = {}
+  hasProjectFilter = false
+  form: any = { plan_id: '', version: '', date: '', responsible_name: '', description: '', justification: '' }
 
   constructor(private store: Store, private snack: MatSnackBar) {}
 
   ngOnInit() {
-    // ITEM 7: Ordenação cronológica — mais recente primeiro
-    this.store.select((state: any) => state.app?.versions ?? []).subscribe(v => {
-      this.versions = [...v].sort((a: any, b: any) => {
+    // Default "Todos os Projetos" (selectedPlanId === '') retorna todo o
+    // histórico; ao selecionar um projeto no topo, filtra só as versões
+    // vinculadas a ele (v.plan_id).
+    combineLatest([
+      this.store.select((state: any) => state.app?.versions ?? []),
+      this.store.select(selectSelectedPlanId),
+    ]).pipe(takeUntil(this.destroy$)).subscribe(([v, planId]) => {
+      this.hasProjectFilter = !!planId
+      const filtered = planId ? v.filter((x: any) => x.plan_id === planId) : v
+      // ITEM 7: Ordenação cronológica — mais recente primeiro
+      this.versions = [...filtered].sort((a: any, b: any) => {
         const dateA = new Date(a.date || a.created_at || 0).getTime()
         const dateB = new Date(b.date || b.created_at || 0).getTime()
         return dateB - dateA
       })
     })
-    this.store.select((state: any) => state.app?.users ?? []).subscribe(u => this.users = u)
+    this.store.select((state: any) => state.app?.users ?? []).pipe(takeUntil(this.destroy$)).subscribe(u => this.users = u)
+    this.store.select(selectPlans).pipe(takeUntil(this.destroy$)).subscribe(plans => {
+      this.openPlans = plans.filter(p => p.status === 'aberto')
+      this.planMap = {}; plans.forEach(p => this.planMap[p.id] = p.project)
+    })
   }
 
+  ngOnDestroy() { this.destroy$.next(); this.destroy$.complete() }
+
+  getPlanName(planId?: string): string { return planId ? (this.planMap[planId] || '') : '' }
+
   save() {
-    if (!this.form.version || !this.form.description) return
+    this.formSubmitted = true
+    if (!this.form.plan_id || !this.form.version || !this.form.description) return
     this.store.dispatch(addVersion({
       version: { ...this.form, id: crypto.randomUUID(), created_at: new Date().toISOString() }
     }))
     this.snack.open('Salvando versão...', undefined, { duration: 2000 })
     this.showForm = false
-    this.form = { version: '', date: '', responsible_name: '', description: '', justification: '' }
+    this.formSubmitted = false
+    this.form = { plan_id: '', version: '', date: '', responsible_name: '', description: '', justification: '' }
   }
 }
